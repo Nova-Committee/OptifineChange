@@ -1,0 +1,129 @@
+plugins {
+    id 'idea'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '5.1.+'
+    id 'org.spongepowered.mixin' version '0.7-SNAPSHOT'
+}
+
+base {
+    archivesName = "${mod_name}-forge-${minecraft_version}"
+}
+
+minecraft {
+    mappings channel: 'stable', version: '39-1.12'
+
+    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
+            property 'forge.logging.console.level', 'debug'
+            property 'mixin.hotSwap', "true"
+        }
+
+        server {
+            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
+            property 'forge.logging.console.level', 'debug'
+            property 'mixin.hotSwap', "true"
+        }
+    }
+}
+
+configurations {
+    embed
+    implementation.extendsFrom(embed)
+}
+
+repositories {
+    maven {
+        name 'CleanroomMC Maven'
+        url 'https://maven.cleanroommc.com'
+    }
+    maven {
+        name 'SpongePowered Maven'
+        url 'https://repo.spongepowered.org/maven'
+    }
+    mavenLocal() // Must be last for caching to work
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-14.23.5.2860"
+
+    annotationProcessor 'org.ow2.asm:asm-debug-all:5.2'
+    compileOnly fg.deobf(fileTree("libs/OptiFine_1.12.2_HD_U_G5_DEV.jar"))
+
+    // Apply Mixin AP.
+    implementation ('zone.rong:mixinbooter:9.1') {
+        transitive = false
+    }
+    annotationProcessor ('zone.rong:mixinbooter:9.1') {
+        transitive = false
+    }
+    compileOnly ("org.projectlombok:lombok:1.18.24")
+    annotationProcessor ("org.projectlombok:lombok:1.18.24")
+}
+
+mixin {
+    //config("${mod_id}.mixins.json")
+    add(sourceSets.main, "${mod_id}.refmap.json")
+    debug.export = true
+    disableTargetExport = false
+}
+
+jar {
+    manifest {
+        attributes([
+                "FMLCorePlugin": "cn.evole.mods.optifinechange.EarlyMixinInit",
+                "FMLCorePluginContainsFMLMod": true,
+                "Specification-Title"     : "${mod_name}",
+                "Specification-Vendor"    : "${mod_author}",
+                "Specification-Version"   : "1", // We are version 1 of ourselves
+                "Implementation-Title"    : project.name,
+                "Implementation-Version"  : project.jar.archiveVersion,
+                "Implementation-Vendor"   : "${mod_author}",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+        ])
+    }
+    from(provider { configurations.embed.collect { it.isDirectory() ? it : zipTree(it) } })
+}
+
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    inputs.property "version", project.version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version
+    }
+
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+
+jar.finalizedBy('reobfJar')
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+
+    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+    repositories {
+        maven {
+            name = "release"
+            url = 'https://maven.nova-committee.cn/releases'
+            credentials {
+                username = System.getenv("MAVEN_USERNAME")
+                password = System.getenv("MAVEN_PASSWORD")
+            }
+        }
+    }
+}

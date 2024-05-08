@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "package": "cn.evole.mods.optifinechange.mixin",
+  "minVersion": "0.8",
+  "refmap": "optifinechange.refmap.json",
+  "mixins": [
+    "GuiOtherSettingsOFMixin"
+  ],
+  "client": [
+    "GuiQualitySettingsOFMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
